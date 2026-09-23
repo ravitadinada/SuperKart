@@ -1,0 +1,27 @@
+services:
+
+  backend:
+    build: ./backend
+    container_name: backend          # <- the hostname the frontend resolves via Docker DNS
+    ports:
+      - "7860:7860"                  # host:container -- 7860 is the port forwarded in Codespaces
+    networks:
+      - superkart-net
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:7860   # service-name DNS, resolved inside the network
+    depends_on:
+      - backend
+    networks:
+      - superkart-net
+    restart: unless-stopped
+
+networks:
+  superkart-net:
+    driver: bridge
