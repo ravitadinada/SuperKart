@@ -4,7 +4,7 @@ Forecasts `Product_Store_Sales_Total` for a given product in a given store.
 
 **Model:** tuned Random Forest Regressor inside a scikit-learn pipeline (one-hot encoding + estimator),
 serialized with joblib.
-**Test performance:** R² 0.9262 | RMSE 290.6 | MAE 115.0 | MAPE 5.11%
+**Test performance:** R² 0.9256 | RMSE 291.7 | MAE 110.8 | MAPE 4.97%
 
 ## Repository layout
 
@@ -31,7 +31,7 @@ forwarded URLs instead of localhost.
 ### `GET /`
 Health check. Returns a welcome string.
 
-### `POST /v1/predict` — online (single) inference
+### `POST /v1/predict`: online (single) inference
 
 ```json
 {
@@ -48,12 +48,12 @@ Health check. Returns a welcome string.
 }
 ```
 
-Response: `{"Sales": 3701.28}`
+Response: `{"Sales": 2919.7}`
 
-### `POST /v1/predictbatch` — batch inference
+### `POST /v1/predictbatch`: batch inference
 
 Multipart upload with form field `file` containing a CSV whose columns are the ten fields above.
-Response: `{"0": 3701.28, "1": 2544.91, ...}` keyed by row index.
+Response: `{"0": 3815.8, "1": 3412.57, ...}` keyed by row index.
 
 ```bash
 curl -X POST -F "file=@Batch_Data_SuperKart.csv" http://localhost:7860/v1/predictbatch
@@ -76,5 +76,5 @@ but predictions for them are extrapolations and should be treated as directional
 ## Note on versions
 
 `backend/requirements.txt` is generated from the runtime that trained the model, and the Dockerfile
-base image matches that Python minor version. If you retrain, regenerate both — a version drift
+base image matches that Python minor version. If you retrain, regenerate both. A version drift
 between training and serving is the most common cause of a joblib load failure.

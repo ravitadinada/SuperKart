@@ -1,14 +1,20 @@
 # Import necessary libraries
 import numpy as np
 import joblib                                  # For loading the serialized model
+from pathlib import Path                       # So the model path does not depend on cwd
 import pandas as pd                            # For data manipulation
 from flask import Flask, request, jsonify      # For creating the Flask API
 
 # Initialize Flask app with a name
 superkart_api = Flask("SuperKart")
 
-# Load the trained model (full pipeline: OneHotEncoder + tuned Random Forest)
-model = joblib.load("superkart_model.joblib")
+# Cap uploads at 10 MB. Without this an arbitrarily large POST is read into memory.
+superkart_api.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
+
+# Load the trained model (full pipeline: OneHotEncoder + tuned Random Forest).
+# Resolved relative to THIS file, so the API also starts when launched from another directory.
+MODEL_PATH = Path(__file__).parent / "superkart_model.joblib"
+model = joblib.load(MODEL_PATH)
 
 # The exact feature set the pipeline was trained on, in order.
 FEATURES = [
@@ -38,6 +44,8 @@ def predict_sales():
     data = request.get_json(silent=True)
     if data is None:
         return jsonify({'error': 'Request body must be JSON'}), 400
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Request body must be a JSON object, not a list'}), 400
 
     # Reject incomplete payloads explicitly rather than failing deep inside the pipeline
     missing = [f for f in FEATURES if f not in data]
@@ -78,8 +86,12 @@ def predict_sales_batch():
     if missing:
         return jsonify({'error': 'CSV is missing required columns', 'missing': missing}), 400
 
-    # Make predictions for the batch data
-    predictions = model.predict(input_data[FEATURES]).tolist()
+    # Make predictions for the batch data. Bad cell values (text in a numeric column,
+    # an empty frame) must surface as a clean 400 rather than a 500.
+    try:
+        predictions = model.predict(input_data[FEATURES]).tolist()
+    except Exception as exc:
+        return jsonify({'error': f'Prediction failed: {exc}'}), 400
 
     # Create an output dictionary mapping row index to predicted sales
     output_dict = {str(i): round(pred, 2) for i, pred in enumerate(predictions)}
@@ -89,4 +101,6 @@ def predict_sales_batch():
 
 # Run the Flask app (development only -- production uses Gunicorn, see the Dockerfile)
 if __name__ == '__main__':
-    superkart_api.run(host='0.0.0.0', port=7860, debug=True)
+    # debug must stay False: the Werkzeug debugger is remote code execution behind a
+    # guessable PIN, and this binds to every interface.
+    superkart_api.run(host='0.0.0.0', port=7860, debug=False)
