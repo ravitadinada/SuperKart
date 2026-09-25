@@ -1,5 +1,4 @@
 # Import necessary libraries
-import numpy as np
 import joblib                                  # For loading the serialized model
 from pathlib import Path                       # So the model path does not depend on cwd
 import pandas as pd                            # For data manipulation
@@ -86,8 +85,11 @@ def predict_sales_batch():
     if missing:
         return jsonify({'error': 'CSV is missing required columns', 'missing': missing}), 400
 
-    # Make predictions for the batch data. Bad cell values (text in a numeric column,
-    # an empty frame) must surface as a clean 400 rather than a 500.
+    if len(input_data) == 0:
+        return jsonify({'error': 'CSV contains no data rows'}), 400
+
+    # Make predictions for the batch data. Bad cell values (text in a numeric column)
+    # must surface as a clean 400 rather than a 500.
     try:
         predictions = model.predict(input_data[FEATURES]).tolist()
     except Exception as exc:
